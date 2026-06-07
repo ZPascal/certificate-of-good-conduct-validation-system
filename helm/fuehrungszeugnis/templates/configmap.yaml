@@ -1,0 +1,32 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "fuehrungszeugnis.fullname" . }}
+  labels:
+    {{- include "fuehrungszeugnis.labels" . | nindent 4 }}
+data:
+  # Database (non-secret) — keys use __ delimiter to match pydantic-settings env_nested_delimiter
+  DATABASE__HOST: {{ include "fuehrungszeugnis.dbHost" . | quote }}
+  DATABASE__PORT: {{ include "fuehrungszeugnis.dbPort" . | quote }}
+  DATABASE__NAME: {{ .Values.postgresql.database | quote }}
+  DATABASE__USER: {{ .Values.postgresql.username | quote }}
+  # Paperless
+  PAPERLESS__BASE_URL: {{ .Values.config.paperless.baseUrl | quote }}
+  PAPERLESS__TAG_NAME: {{ .Values.config.paperless.tagName | quote }}
+  PAPERLESS__POLL_INTERVAL_SECONDS: {{ .Values.config.paperless.pollIntervalSeconds | toString | quote }}
+  # Hitobito
+  HITOBITO__BASE_URL: {{ .Values.config.hitobito.baseUrl | quote }}
+  HITOBITO__GROUP_ID: {{ .Values.config.hitobito.groupId | toString | quote }}
+  HITOBITO__EFZ_QUALIFICATION_KIND_LABEL: {{ .Values.config.hitobito.efzQualificationKindLabel | quote }}
+  HITOBITO__STAMM_NAME: {{ .Values.config.hitobito.stammName | quote }}
+  HITOBITO__DIOEZESE_NAME: {{ .Values.config.hitobito.dioezeseName | quote }}
+  # Email
+  EMAIL__SMTP_HOST: {{ .Values.config.email.smtpHost | quote }}
+  EMAIL__SMTP_PORT: {{ .Values.config.email.smtpPort | toString | quote }}
+  EMAIL__SMTP_USE_TLS: {{ .Values.config.email.smtpUseTls | toString | quote }}
+  EMAIL__SENDER: {{ .Values.config.email.sender | quote }}
+  EMAIL__ALERT_RECIPIENTS: {{ .Values.config.email.alertRecipients | quote }}
+  # General (top-level settings — no prefix needed)
+  LOG_LEVEL: {{ .Values.config.general.logLevel | quote }}
+  CERTIFICATE_MAX_AGE_YEARS: {{ .Values.config.general.certificateMaxAgeYears | toString | quote }}
+  EXPIRY_ALERT_DAYS: {{ .Values.config.general.expiryAlertDays | toString | quote }}

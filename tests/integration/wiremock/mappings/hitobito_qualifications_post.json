@@ -1,0 +1,21 @@
+{
+  "request": {
+    "method": "POST",
+    "urlPath": "/api/qualifications"
+  },
+  "response": {
+    "status": 201,
+    "headers": { "Content-Type": "application/vnd.api+json" },
+    "jsonBody": {
+      "data": {
+        "id": "99",
+        "type": "qualifications",
+        "attributes": {
+          "start_at": "2025-01-01",
+          "finish_at": "2030-01-01",
+          "origin": "Automatisch validiert"
+        }
+      }
+    }
+  }
+}

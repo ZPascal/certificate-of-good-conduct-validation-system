@@ -1,0 +1,1 @@
+"""Hitobito API client package."""
