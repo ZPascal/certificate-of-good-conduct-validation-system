@@ -1,0 +1,52 @@
+# .github/workflows/ci.yml
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: astral-sh/setup-uv@v5
+
+      - run: uv sync
+
+      - run: uv run ruff check .
+        
+      - run: uv run ruff format --check .
+
+  unit-tests:
+    needs: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: astral-sh/setup-uv@v5
+
+      - run: uv sync
+
+      - run: uv run pytest tests/ --ignore=tests/integration -v
+
+  integration-tests:
+    needs: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+
+      - run: uv sync
+
+      - name: Start integration services
+        run: docker compose -f tests/integration/docker-compose.integration.yml up -d --wait
+
+      - name: Run integration tests
+        run: uv run pytest tests/integration/ -v
+
+      - name: Tear down services
+        if: always()
+        run: docker compose -f tests/integration/docker-compose.integration.yml down -v

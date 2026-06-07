@@ -1,0 +1,55 @@
+nameOverride: ""
+fullnameOverride: ""
+
+image:
+  repository: ghcr.io/zpascal/certificate-of-good-conduct-validation-system
+  tag: latest
+  pullPolicy: IfNotPresent
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 256Mi
+
+config:
+  paperless:
+    baseUrl: "http://paperless:8000"
+    tagName: "Führungszeugnis"
+    pollIntervalSeconds: 300
+  hitobito:
+    baseUrl: "http://hitobito:3000"
+    groupId: 1
+    efzQualificationKindLabel: "Erweitertes Führungszeugnis"
+    stammName: ""
+    dioezeseName: ""
+  email:
+    smtpHost: "localhost"
+    smtpPort: 587
+    smtpUseTls: true
+    sender: "noreply@example.com"
+    alertRecipients: ""
+  general:
+    logLevel: "INFO"
+    certificateMaxAgeYears: 5
+    expiryAlertDays: 120
+
+secrets:
+  paperlessToken: ""
+  hitobitoToken: ""
+  emailSmtpPassword: ""
+  dbPassword: "changeme"
+
+postgresql:
+  image:
+    repository: postgres
+    tag: "16"
+    pullPolicy: IfNotPresent
+  database: certificate_validation
+  username: postgres
+  persistence:
+    enabled: true
+    size: 8Gi
+    storageClass: ""

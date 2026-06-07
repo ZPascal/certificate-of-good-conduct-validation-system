@@ -1,0 +1,6 @@
+apiVersion: v2
+name: fuehrungszeugnis
+description: Certificate of Good Conduct Validation System
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

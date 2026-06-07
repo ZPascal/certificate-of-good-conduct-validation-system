@@ -1,0 +1,41 @@
+# Certificate of Good Conduct Validation System – configuration
+# Copy this file to config/config.toml and fill in your values.
+# Secrets (tokens, passwords) may alternatively be set via environment variables
+# (same names, upper-cased) which take precedence over this file.
+
+log_level = "INFO"
+# Maximum age in years before a certificate is treated as expired
+certificate_max_age_years = 5
+# Send expiry warning this many days before the cancellation date (~4 months)
+expiry_alert_days = 120
+
+[database]
+host = "localhost"
+port = 5432
+name = "certificate_validation"
+user = "postgres"
+password = "changeme"
+
+[paperless]
+base_url = "http://localhost:8000"
+token = ""
+tag_name = "Führungszeugnis"
+poll_interval_seconds = 300
+
+[hitobito]
+base_url = "http://localhost:3000"
+token = ""
+# Layer group ID for alert-recipient lookups
+group_id = 1
+# Label of the QualificationKind in hitobito representing the EFZ
+efz_qualification_kind_label = "Erweitertes Führungszeugnis"
+
+[email]
+smtp_host = "smtp.example.com"
+smtp_port = 587
+smtp_user = ""
+smtp_password = ""
+smtp_use_tls = true
+sender = "noreply@example.com"
+# Comma-separated alert recipients; leave empty to auto-fetch from hitobito
+alert_recipients = ""

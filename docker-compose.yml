@@ -1,0 +1,46 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: certificate_validation
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-changeme}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  migrate:
+    build: .
+    command: ["python", "-m", "alembic", "upgrade", "head"]
+    environment:
+      DATABASE__HOST: db
+      DATABASE__PORT: "5432"
+      DATABASE__NAME: certificate_validation
+      DATABASE__USER: postgres
+      DATABASE__PASSWORD: ${DB_PASSWORD:-changeme}
+    depends_on:
+      db:
+        condition: service_healthy
+
+  worker:
+    build: .
+    command: ["python", "-m", "src.main"]
+    environment:
+      DATABASE__HOST: db
+      DATABASE__PORT: "5432"
+      DATABASE__NAME: certificate_validation
+      DATABASE__USER: postgres
+      DATABASE__PASSWORD: ${DB_PASSWORD:-changeme}
+    volumes:
+      - ./config/config.toml:/app/config/config.toml:ro
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+volumes:
+  pgdata:
