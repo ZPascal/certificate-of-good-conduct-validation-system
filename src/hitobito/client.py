@@ -224,12 +224,14 @@ class HitobitoClient:
                 )
                 if _normalize_street(candidate_street) == norm_street:
                     attrs = candidate_data.get("data", {}).get("attributes", {})
-                    matches.append(HitobitoAttribution(
-                        person_id=int(candidate["id"]),
-                        first_name=attrs.get("first_name"),
-                        last_name=attrs.get("last_name"),
-                        email=attrs.get("email"),
-                    ))
+                    matches.append(
+                        HitobitoAttribution(
+                            person_id=int(candidate["id"]),
+                            first_name=attrs.get("first_name"),
+                            last_name=attrs.get("last_name"),
+                            email=attrs.get("email"),
+                        )
+                    )
             if len(matches) == 1:
                 return matches[0]
             logger.warning(
