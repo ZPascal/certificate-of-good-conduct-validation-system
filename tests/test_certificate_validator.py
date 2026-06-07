@@ -192,12 +192,18 @@ class TestEdgeCases:
 
 class TestStreetExtraction:
     def test_extracts_street_from_wohnhaft_label(self, validator):
-        text = "Führungszeugnis\nKeine Eintragungen\nwohnhaft: Musterstraße 12\nAusgestellt 01.06.2025"
+        text = (
+            "Führungszeugnis\nKeine Eintragungen\n"
+            "wohnhaft: Musterstraße 12\nAusgestellt 01.06.2025"
+        )
         result = validator.validate(text, "doc.pdf")
         assert result.street == "Musterstraße 12"
 
     def test_extracts_street_from_anschrift_label(self, validator):
-        text = "Führungszeugnis\nKeine Eintragungen\nAnschrift: Gartenweg 4a\nAusgestellt 01.06.2025"
+        text = (
+            "Führungszeugnis\nKeine Eintragungen\n"
+            "Anschrift: Gartenweg 4a\nAusgestellt 01.06.2025"
+        )
         result = validator.validate(text, "doc.pdf")
         assert result.street == "Gartenweg 4a"
 

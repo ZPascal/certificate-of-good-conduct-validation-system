@@ -209,9 +209,15 @@ class HitobitoClient:
             matches: list[HitobitoAttribution] = []
             for candidate in candidates:
                 try:
-                    candidate_data = self._get(f"people/{candidate['id']}", params={"include": "roles"})
+                    candidate_data = self._get(
+                        f"people/{candidate['id']}", params={"include": "roles"}
+                    )
                 except requests.RequestException as exc:
-                    logger.warning("Failed to fetch person %s for street disambiguation: %s", candidate["id"], exc)
+                    logger.warning(
+                        "Failed to fetch person %s for street disambiguation: %s",
+                        candidate["id"],
+                        exc,
+                    )
                     continue
                 candidate_street = (
                     candidate_data.get("data", {}).get("attributes", {}).get("street", "")

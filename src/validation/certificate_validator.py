@@ -66,7 +66,8 @@ _NAME_LABEL = re.compile(
 # Street address extraction: label followed by "Streetname NN[a]"
 _STREET_PATTERN = re.compile(
     r"(?:wohnhaft|adresse|anschrift|stra(?:ße|sse)|str\.|weg|allee|platz|gasse)"
-    r"[^\n]{0,10}?([A-ZÄÖÜ][a-zäöüßA-ZÄÖÜ\-\.][a-zäöüßA-ZÄÖÜ\-\. ]{2,38}?\s+\d{1,4}\s*[a-z]?)(?:\n|$)",
+    r"[^\n]{0,10}?([A-ZÄÖÜ][a-zäöüßA-ZÄÖÜ\-\.][a-zäöüßA-ZÄÖÜ\-\. ]{2,38}?"
+    r"\s+\d{1,4}\s*[a-z]?)(?:\n|$)",
     re.IGNORECASE,
 )
 
