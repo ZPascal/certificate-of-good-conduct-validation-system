@@ -1,6 +1,7 @@
 """Tests for the Paperless-ngx client."""
 
-import pytest
+import unittest
+
 import responses as responses_lib
 
 from src.paperless.client import PaperlessClient, PaperlessDocument
@@ -8,18 +9,16 @@ from src.paperless.client import PaperlessClient, PaperlessDocument
 PAPERLESS_BASE = "http://paperless.example.com"
 
 
-@pytest.fixture
-def client():
-    return PaperlessClient(
-        base_url=PAPERLESS_BASE,
-        token="test-token",
-        tag_name="Führungszeugnis",
-    )
+class TestGetDocument(unittest.TestCase):
+    def setUp(self):
+        self.client = PaperlessClient(
+            base_url=PAPERLESS_BASE,
+            token="test-token",
+            tag_name="Führungszeugnis",
+        )
 
-
-class TestGetDocument:
     @responses_lib.activate
-    def test_returns_document(self, client):
+    def test_returns_document(self):
         responses_lib.add(
             responses_lib.GET,
             f"{PAPERLESS_BASE}/api/documents/1/",
@@ -34,30 +33,37 @@ class TestGetDocument:
             },
             status=200,
         )
-        doc = client.get_document(1)
-        assert isinstance(doc, PaperlessDocument)
-        assert doc.id == 1
-        assert doc.title == "Führungszeugnis Max Mustermann"
-        assert "Keine Eintragungen" in doc.content
-        assert doc.created is not None
-        assert doc.created.year == 2024
+        doc = self.client.get_document(1)
+        self.assertIsInstance(doc, PaperlessDocument)
+        self.assertEqual(doc.id, 1)
+        self.assertEqual(doc.title, "Führungszeugnis Max Mustermann")
+        self.assertIn("Keine Eintragungen", doc.content)
+        self.assertIsNotNone(doc.created)
+        self.assertEqual(doc.created.year, 2024)
 
 
-class TestGetFuehrungszeugnisDocuments:
+class TestGetFuehrungszeugnisDocuments(unittest.TestCase):
+    def setUp(self):
+        self.client = PaperlessClient(
+            base_url=PAPERLESS_BASE,
+            token="test-token",
+            tag_name="Führungszeugnis",
+        )
+
     @responses_lib.activate
-    def test_returns_empty_when_tag_not_found(self, client):
+    def test_returns_empty_when_tag_not_found(self):
         responses_lib.add(
             responses_lib.GET,
             f"{PAPERLESS_BASE}/api/tags/",
             json={"results": [], "count": 0},
             status=200,
         )
-        docs, total = client.get_fuehrungszeugnis_documents()
-        assert docs == []
-        assert total == 0
+        docs, total = self.client.get_fuehrungszeugnis_documents()
+        self.assertEqual(docs, [])
+        self.assertEqual(total, 0)
 
     @responses_lib.activate
-    def test_returns_documents_for_tag(self, client):
+    def test_returns_documents_for_tag(self):
         responses_lib.add(
             responses_lib.GET,
             f"{PAPERLESS_BASE}/api/tags/",
@@ -86,13 +92,13 @@ class TestGetFuehrungszeugnisDocuments:
             },
             status=200,
         )
-        docs, total = client.get_fuehrungszeugnis_documents()
-        assert total == 1
-        assert len(docs) == 1
-        assert docs[0].id == 42
+        docs, total = self.client.get_fuehrungszeugnis_documents()
+        self.assertEqual(total, 1)
+        self.assertEqual(len(docs), 1)
+        self.assertEqual(docs[0].id, 42)
 
     @responses_lib.activate
-    def test_tag_id_is_cached(self, client):
+    def test_tag_id_is_cached(self):
         responses_lib.add(
             responses_lib.GET,
             f"{PAPERLESS_BASE}/api/tags/",
@@ -106,16 +112,23 @@ class TestGetFuehrungszeugnisDocuments:
             status=200,
         )
 
-        client.get_fuehrungszeugnis_documents()
-        client.get_fuehrungszeugnis_documents()
+        self.client.get_fuehrungszeugnis_documents()
+        self.client.get_fuehrungszeugnis_documents()
 
         tag_calls = [c for c in responses_lib.calls if "/api/tags/" in c.request.url]
-        assert len(tag_calls) == 1
+        self.assertEqual(len(tag_calls), 1)
 
 
-class TestIterFuehrungszeugnisDocuments:
+class TestIterFuehrungszeugnisDocuments(unittest.TestCase):
+    def setUp(self):
+        self.client = PaperlessClient(
+            base_url=PAPERLESS_BASE,
+            token="test-token",
+            tag_name="Führungszeugnis",
+        )
+
     @responses_lib.activate
-    def test_iterates_all_pages(self, client):
+    def test_iterates_all_pages(self):
         responses_lib.add(
             responses_lib.GET,
             f"{PAPERLESS_BASE}/api/tags/",
@@ -157,5 +170,5 @@ class TestIterFuehrungszeugnisDocuments:
             json={"count": 26, "results": page_2_docs},
             status=200,
         )
-        docs = list(client.iter_fuehrungszeugnis_documents())
-        assert len(docs) == 26
+        docs = list(self.client.iter_fuehrungszeugnis_documents())
+        self.assertEqual(len(docs), 26)

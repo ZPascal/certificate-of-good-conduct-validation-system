@@ -1,44 +1,64 @@
 # tests/integration/test_validation_pipeline.py
 """End-to-end pipeline tests: run_once() → assert DB state."""
 
+import unittest
+
+import pytest
+
 from src.database.models import CertificateValidation
 
 
-class TestValidDocumentPipeline:
-    def test_valid_certificate_creates_valid_row(self, worker, db_session):
+class TestValidDocumentPipeline(unittest.TestCase):
+    @pytest.fixture(autouse=True)
+    def inject_fixtures(self, worker, db_session):
+        self.worker = worker
+        self.db_session = db_session
+
+    def test_valid_certificate_creates_valid_row(self):
         """A clean cert (keine Eintragungen, recent date) → is_valid=True."""
-        worker.run_once()
-        db_session.expire_all()
+        self.worker.run_once()
+        self.db_session.expire_all()
 
         row = (
-            db_session.query(CertificateValidation).filter_by(paperless_document_id=1).one_or_none()
+            self.db_session.query(CertificateValidation)
+            .filter_by(paperless_document_id=1)
+            .one_or_none()
         )
 
-        assert row is not None
-        assert row.is_valid is True
-        assert row.person_name == "Max Mustermann"
-        assert row.cancellation_date is not None
+        self.assertIsNotNone(row)
+        self.assertTrue(row.is_valid)
+        self.assertEqual(row.person_name, "Max Mustermann")
+        self.assertIsNotNone(row.cancellation_date)
 
-    def test_valid_certificate_is_idempotent(self, worker, db_session):
+    def test_valid_certificate_is_idempotent(self):
         """Running run_once() twice for the same document must not create a duplicate row."""
-        worker.run_once()
-        worker.run_once()
-        db_session.expire_all()
+        self.worker.run_once()
+        self.worker.run_once()
+        self.db_session.expire_all()
 
-        count = db_session.query(CertificateValidation).filter_by(paperless_document_id=1).count()
-        assert count == 1
+        count = (
+            self.db_session.query(CertificateValidation).filter_by(paperless_document_id=1).count()
+        )
+        self.assertEqual(count, 1)
 
 
-class TestInvalidDocumentPipeline:
-    def test_invalid_certificate_creates_invalid_row(self, worker, db_session, wiremock_invalid):
+class TestInvalidDocumentPipeline(unittest.TestCase):
+    @pytest.fixture(autouse=True)
+    def inject_fixtures(self, worker, db_session, wiremock_invalid):
+        self.worker = worker
+        self.db_session = db_session
+
+    def test_invalid_certificate_creates_invalid_row(self):
         """A cert with criminal entries → is_valid=False."""
-        worker.run_once()
-        db_session.expire_all()
+        self.worker.run_once()
+        self.db_session.expire_all()
 
         row = (
-            db_session.query(CertificateValidation).filter_by(paperless_document_id=2).one_or_none()
+            self.db_session.query(CertificateValidation)
+            .filter_by(paperless_document_id=2)
+            .one_or_none()
         )
 
-        assert row is not None
-        assert row.is_valid is False
-        assert row.person_name == "Erika Musterfrau"
+        self.assertIsNotNone(row)
+        self.assertFalse(row.is_valid)
+        self.assertEqual(row.person_name, "Erika Musterfrau")

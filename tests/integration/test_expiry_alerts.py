@@ -1,9 +1,11 @@
 # tests/integration/test_expiry_alerts.py
 """Integration tests for the 4-month expiry alert job."""
 
+import unittest
 from datetime import date, timedelta
 from email.header import decode_header
 
+import pytest
 import requests as http_requests
 
 from src.database.models import CertificateValidation
@@ -28,8 +30,13 @@ def _decode_subject(raw_subject: str) -> str:
     return "".join(decoded)
 
 
-class TestExpiryAlerts:
-    def test_sends_alert_for_certificate_expiring_within_window(self, worker, db_session):
+class TestExpiryAlerts(unittest.TestCase):
+    @pytest.fixture(autouse=True)
+    def inject_fixtures(self, worker, db_session):
+        self.worker = worker
+        self.db_session = db_session
+
+    def test_sends_alert_for_certificate_expiring_within_window(self):
         """Certificate expiring in 30 days → expiry alert email sent."""
         record = CertificateValidation(
             paperless_document_id=900,
@@ -37,18 +44,18 @@ class TestExpiryAlerts:
             is_valid=True,
             cancellation_date=date.today() + timedelta(days=30),
         )
-        db_session.add(record)
-        db_session.flush()
+        self.db_session.add(record)
+        self.db_session.flush()
 
-        worker.run_expiry_check()
+        self.worker.run_expiry_check()
 
         messages = _mailhog_messages()
-        assert len(messages) == 1
+        self.assertEqual(len(messages), 1)
         subject = _decode_subject(messages[0]["Content"]["Headers"]["Subject"][0])
-        assert "läuft bald ab" in subject
-        assert "Fritz Fischer" in subject
+        self.assertIn("läuft bald ab", subject)
+        self.assertIn("Fritz Fischer", subject)
 
-    def test_no_alert_for_certificate_outside_window(self, worker, db_session):
+    def test_no_alert_for_certificate_outside_window(self):
         """Certificate expiring in 200 days (outside 120-day window) → no email."""
         record = CertificateValidation(
             paperless_document_id=901,
@@ -56,14 +63,14 @@ class TestExpiryAlerts:
             is_valid=True,
             cancellation_date=date.today() + timedelta(days=200),
         )
-        db_session.add(record)
-        db_session.flush()
+        self.db_session.add(record)
+        self.db_session.flush()
 
-        worker.run_expiry_check()
+        self.worker.run_expiry_check()
 
-        assert _mailhog_messages() == []
+        self.assertEqual(_mailhog_messages(), [])
 
-    def test_no_alert_for_invalid_certificate(self, worker, db_session):
+    def test_no_alert_for_invalid_certificate(self):
         """Invalid cert even with imminent cancellation_date → no expiry alert."""
         record = CertificateValidation(
             paperless_document_id=902,
@@ -71,9 +78,9 @@ class TestExpiryAlerts:
             is_valid=False,
             cancellation_date=date.today() + timedelta(days=10),
         )
-        db_session.add(record)
-        db_session.flush()
+        self.db_session.add(record)
+        self.db_session.flush()
 
-        worker.run_expiry_check()
+        self.worker.run_expiry_check()
 
-        assert _mailhog_messages() == []
+        self.assertEqual(_mailhog_messages(), [])

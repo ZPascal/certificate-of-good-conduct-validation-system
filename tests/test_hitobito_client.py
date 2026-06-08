@@ -1,6 +1,8 @@
 """Tests for the Hitobito JSON:API client."""
 
-import pytest
+import unittest
+from datetime import date
+
 import responses as responses_lib
 
 from src.hitobito.client import HitobitoAttribution, HitobitoClient, HitobitoQualification
@@ -8,14 +10,12 @@ from src.hitobito.client import HitobitoAttribution, HitobitoClient, HitobitoQua
 HITOBITO_BASE = "http://hitobito.example.com"
 
 
-@pytest.fixture
-def client():
-    return HitobitoClient(base_url=HITOBITO_BASE, token="test-token")
+class TestGetPerson(unittest.TestCase):
+    def setUp(self):
+        self.client = HitobitoClient(base_url=HITOBITO_BASE, token="test-token")
 
-
-class TestGetPerson:
     @responses_lib.activate
-    def test_get_person_returns_attribution(self, client):
+    def test_get_person_returns_attribution(self):
         responses_lib.add(
             responses_lib.GET,
             f"{HITOBITO_BASE}/api/people/42",
@@ -35,27 +35,27 @@ class TestGetPerson:
             },
             status=200,
         )
-        result = client.get_person(42)
-        assert result is not None
-        assert isinstance(result, HitobitoAttribution)
-        assert result.person_id == 42
-        assert result.first_name == "Max"
-        assert result.last_name == "Mustermann"
-        assert result.email == "max@example.com"
+        result = self.client.get_person(42)
+        self.assertIsNotNone(result)
+        self.assertIsInstance(result, HitobitoAttribution)
+        self.assertEqual(result.person_id, 42)
+        self.assertEqual(result.first_name, "Max")
+        self.assertEqual(result.last_name, "Mustermann")
+        self.assertEqual(result.email, "max@example.com")
 
     @responses_lib.activate
-    def test_get_person_returns_none_for_404(self, client):
+    def test_get_person_returns_none_for_404(self):
         responses_lib.add(
             responses_lib.GET,
             f"{HITOBITO_BASE}/api/people/999",
             json={"errors": [{"code": "not_found"}]},
             status=404,
         )
-        result = client.get_person(999)
-        assert result is None
+        result = self.client.get_person(999)
+        self.assertIsNone(result)
 
     @responses_lib.activate
-    def test_get_person_parses_roles(self, client):
+    def test_get_person_parses_roles(self):
         responses_lib.add(
             responses_lib.GET,
             f"{HITOBITO_BASE}/api/people/10",
@@ -82,16 +82,19 @@ class TestGetPerson:
             },
             status=200,
         )
-        result = client.get_person(10)
-        assert result is not None
-        assert len(result.roles) == 1
-        assert result.roles[0].type == "Group::Stamm::ErfassungFuehrungszeugnis"
-        assert result.roles[0].group_id == 7
+        result = self.client.get_person(10)
+        self.assertIsNotNone(result)
+        self.assertEqual(len(result.roles), 1)
+        self.assertEqual(result.roles[0].type, "Group::Stamm::ErfassungFuehrungszeugnis")
+        self.assertEqual(result.roles[0].group_id, 7)
 
 
-class TestFindPersonByName:
+class TestFindPersonByName(unittest.TestCase):
+    def setUp(self):
+        self.client = HitobitoClient(base_url=HITOBITO_BASE, token="test-token")
+
     @responses_lib.activate
-    def test_finds_person_by_exact_name(self, client):
+    def test_finds_person_by_exact_name(self):
         responses_lib.add(
             responses_lib.GET,
             f"{HITOBITO_BASE}/api/people",
@@ -111,24 +114,24 @@ class TestFindPersonByName:
             },
             status=200,
         )
-        result = client.find_person_by_name("Maria Muster")
-        assert result is not None
-        assert result.person_id == 77
-        assert result.email == "maria@example.com"
+        result = self.client.find_person_by_name("Maria Muster")
+        self.assertIsNotNone(result)
+        self.assertEqual(result.person_id, 77)
+        self.assertEqual(result.email, "maria@example.com")
 
     @responses_lib.activate
-    def test_returns_none_when_name_not_found(self, client):
+    def test_returns_none_when_name_not_found(self):
         responses_lib.add(
             responses_lib.GET,
             f"{HITOBITO_BASE}/api/people",
             json={"data": [], "meta": {}},
             status=200,
         )
-        result = client.find_person_by_name("Unbekannte Person")
-        assert result is None
+        result = self.client.find_person_by_name("Unbekannte Person")
+        self.assertIsNone(result)
 
     @responses_lib.activate
-    def test_matches_name_with_umlauts(self, client):
+    def test_matches_name_with_umlauts(self):
         responses_lib.add(
             responses_lib.GET,
             f"{HITOBITO_BASE}/api/people",
@@ -148,14 +151,17 @@ class TestFindPersonByName:
             },
             status=200,
         )
-        result = client.find_person_by_name("Jürgen Müller")
-        assert result is not None
-        assert result.person_id == 88
+        result = self.client.find_person_by_name("Jürgen Müller")
+        self.assertIsNotNone(result)
+        self.assertEqual(result.person_id, 88)
 
 
-class TestFindPeopleByRole:
+class TestFindPeopleByRole(unittest.TestCase):
+    def setUp(self):
+        self.client = HitobitoClient(base_url=HITOBITO_BASE, token="test-token")
+
     @responses_lib.activate
-    def test_finds_people_with_matching_role(self, client):
+    def test_finds_people_with_matching_role(self):
         responses_lib.add(
             responses_lib.GET,
             f"{HITOBITO_BASE}/api/roles",
@@ -184,12 +190,12 @@ class TestFindPeopleByRole:
             },
             status=200,
         )
-        results = client.find_people_by_role(group_id=1, role_type_contains="Führungszeugnis")
-        assert len(results) == 1
-        assert results[0].email == "kw@example.com"
+        results = self.client.find_people_by_role(group_id=1, role_type_contains="Führungszeugnis")
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0].email, "kw@example.com")
 
     @responses_lib.activate
-    def test_filters_by_role_type(self, client):
+    def test_filters_by_role_type(self):
         responses_lib.add(
             responses_lib.GET,
             f"{HITOBITO_BASE}/api/roles",
@@ -218,11 +224,11 @@ class TestFindPeopleByRole:
             },
             status=200,
         )
-        results = client.find_people_by_role(group_id=1, role_type_contains="Führungszeugnis")
-        assert results == []
+        results = self.client.find_people_by_role(group_id=1, role_type_contains="Führungszeugnis")
+        self.assertEqual(results, [])
 
     @responses_lib.activate
-    def test_follows_pagination_links(self, client):
+    def test_follows_pagination_links(self):
         responses_lib.add(
             responses_lib.GET,
             f"{HITOBITO_BASE}/api/roles",
@@ -271,14 +277,17 @@ class TestFindPeopleByRole:
             },
             status=200,
         )
-        results = client.find_people_by_role(group_id=1, role_type_contains="Führungszeugnis")
-        assert len(results) == 2
-        assert {r.email for r in results} == {"a@b.com", "c@d.com"}
+        results = self.client.find_people_by_role(group_id=1, role_type_contains="Führungszeugnis")
+        self.assertEqual(len(results), 2)
+        self.assertEqual({r.email for r in results}, {"a@b.com", "c@d.com"})
 
 
-class TestGetEfzQualificationKindId:
+class TestGetEfzQualificationKindId(unittest.TestCase):
+    def setUp(self):
+        self.client = HitobitoClient(base_url=HITOBITO_BASE, token="test-token")
+
     @responses_lib.activate
-    def test_resolves_kind_id_by_label(self, client):
+    def test_resolves_kind_id_by_label(self):
         responses_lib.add(
             responses_lib.GET,
             f"{HITOBITO_BASE}/api/qualification_kinds",
@@ -294,22 +303,22 @@ class TestGetEfzQualificationKindId:
             },
             status=200,
         )
-        kind_id = client.get_efz_qualification_kind_id("Erweitertes Führungszeugnis")
-        assert kind_id == 7
+        kind_id = self.client.get_efz_qualification_kind_id("Erweitertes Führungszeugnis")
+        self.assertEqual(kind_id, 7)
 
     @responses_lib.activate
-    def test_returns_none_when_label_not_found(self, client):
+    def test_returns_none_when_label_not_found(self):
         responses_lib.add(
             responses_lib.GET,
             f"{HITOBITO_BASE}/api/qualification_kinds",
             json={"data": [], "meta": {}},
             status=200,
         )
-        kind_id = client.get_efz_qualification_kind_id("Nonexistent Label")
-        assert kind_id is None
+        kind_id = self.client.get_efz_qualification_kind_id("Nonexistent Label")
+        self.assertIsNone(kind_id)
 
     @responses_lib.activate
-    def test_caches_kind_id(self, client):
+    def test_caches_kind_id(self):
         responses_lib.add(
             responses_lib.GET,
             f"{HITOBITO_BASE}/api/qualification_kinds",
@@ -325,17 +334,19 @@ class TestGetEfzQualificationKindId:
             },
             status=200,
         )
-        first = client.get_efz_qualification_kind_id("Erweitertes Führungszeugnis")
-        second = client.get_efz_qualification_kind_id("Erweitertes Führungszeugnis")
-        assert first == second == 3
-        assert len(responses_lib.calls) == 1
+        first = self.client.get_efz_qualification_kind_id("Erweitertes Führungszeugnis")
+        second = self.client.get_efz_qualification_kind_id("Erweitertes Führungszeugnis")
+        self.assertEqual(first, 3)
+        self.assertEqual(second, 3)
+        self.assertEqual(len(responses_lib.calls), 1)
 
 
-class TestCreateEfzQualification:
+class TestCreateEfzQualification(unittest.TestCase):
+    def setUp(self):
+        self.client = HitobitoClient(base_url=HITOBITO_BASE, token="test-token")
+
     @responses_lib.activate
-    def test_creates_qualification_record(self, client):
-        from datetime import date
-
+    def test_creates_qualification_record(self):
         responses_lib.add(
             responses_lib.POST,
             f"{HITOBITO_BASE}/api/qualifications",
@@ -352,40 +363,41 @@ class TestCreateEfzQualification:
             },
             status=201,
         )
-        result = client.create_efz_qualification(
+        result = self.client.create_efz_qualification(
             person_id=42,
             qualification_kind_id=7,
             start_at=date(2024, 1, 15),
             finish_at=date(2029, 1, 15),
             origin="Test origin",
         )
-        assert result is not None
-        assert isinstance(result, HitobitoQualification)
-        assert result.id == 99
-        assert result.person_id == 42
+        self.assertIsNotNone(result)
+        self.assertIsInstance(result, HitobitoQualification)
+        self.assertEqual(result.id, 99)
+        self.assertEqual(result.person_id, 42)
 
     @responses_lib.activate
-    def test_returns_none_on_api_error(self, client):
-        from datetime import date
-
+    def test_returns_none_on_api_error(self):
         responses_lib.add(
             responses_lib.POST,
             f"{HITOBITO_BASE}/api/qualifications",
             json={"errors": [{"code": "forbidden"}]},
             status=403,
         )
-        result = client.create_efz_qualification(
+        result = self.client.create_efz_qualification(
             person_id=42,
             qualification_kind_id=7,
             start_at=date(2024, 1, 15),
             finish_at=None,
         )
-        assert result is None
+        self.assertIsNone(result)
 
 
-class TestGetPersonQualifications:
+class TestGetPersonQualifications(unittest.TestCase):
+    def setUp(self):
+        self.client = HitobitoClient(base_url=HITOBITO_BASE, token="test-token")
+
     @responses_lib.activate
-    def test_returns_qualifications_for_person(self, client):
+    def test_returns_qualifications_for_person(self):
         responses_lib.add(
             responses_lib.GET,
             f"{HITOBITO_BASE}/api/qualifications",
@@ -417,16 +429,19 @@ class TestGetPersonQualifications:
             },
             status=200,
         )
-        results = client.get_person_qualifications(person_id=42)
-        assert len(results) == 1
-        assert results[0].qualification_kind_label == "Erweitertes Führungszeugnis"
-        assert results[0].start_at is not None
-        assert results[0].start_at.year == 2023
+        results = self.client.get_person_qualifications(person_id=42)
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0].qualification_kind_label, "Erweitertes Führungszeugnis")
+        self.assertIsNotNone(results[0].start_at)
+        self.assertEqual(results[0].start_at.year, 2023)
 
 
-class TestFindPersonByNameAndStreet:
+class TestFindPersonByNameAndStreet(unittest.TestCase):
+    def setUp(self):
+        self.client = HitobitoClient(base_url=HITOBITO_BASE, token="test-token")
+
     @responses_lib.activate
-    def test_returns_single_match_without_address_fetch(self, client):
+    def test_returns_single_match_without_address_fetch(self):
         responses_lib.add(
             responses_lib.GET,
             f"{HITOBITO_BASE}/api/people",
@@ -447,13 +462,13 @@ class TestFindPersonByNameAndStreet:
             },
             status=200,
         )
-        result = client.find_person_by_name_and_street("Maria Muster", "Musterstraße 12")
-        assert result is not None
-        assert result.person_id == 10
-        assert len(responses_lib.calls) == 1
+        result = self.client.find_person_by_name_and_street("Maria Muster", "Musterstraße 12")
+        self.assertIsNotNone(result)
+        self.assertEqual(result.person_id, 10)
+        self.assertEqual(len(responses_lib.calls), 1)
 
     @responses_lib.activate
-    def test_disambiguates_by_street_when_multiple_candidates(self, client):
+    def test_disambiguates_by_street_when_multiple_candidates(self):
         responses_lib.add(
             responses_lib.GET,
             f"{HITOBITO_BASE}/api/people",
@@ -517,12 +532,12 @@ class TestFindPersonByNameAndStreet:
             },
             status=200,
         )
-        result = client.find_person_by_name_and_street("Anna Schmidt", "Musterstraße 12")
-        assert result is not None
-        assert result.person_id == 2
+        result = self.client.find_person_by_name_and_street("Anna Schmidt", "Musterstraße 12")
+        self.assertIsNotNone(result)
+        self.assertEqual(result.person_id, 2)
 
     @responses_lib.activate
-    def test_returns_none_when_ambiguous_and_no_street(self, client):
+    def test_returns_none_when_ambiguous_and_no_street(self):
         responses_lib.add(
             responses_lib.GET,
             f"{HITOBITO_BASE}/api/people",
@@ -552,11 +567,11 @@ class TestFindPersonByNameAndStreet:
             },
             status=200,
         )
-        result = client.find_person_by_name_and_street("Hans Meier", None)
-        assert result is None
+        result = self.client.find_person_by_name_and_street("Hans Meier", None)
+        self.assertIsNone(result)
 
     @responses_lib.activate
-    def test_returns_none_when_no_candidate_matches_street(self, client):
+    def test_returns_none_when_no_candidate_matches_street(self):
         responses_lib.add(
             responses_lib.GET,
             f"{HITOBITO_BASE}/api/people",
@@ -618,18 +633,21 @@ class TestFindPersonByNameAndStreet:
             },
             status=200,
         )
-        result = client.find_person_by_name_and_street("Klaus Weber", "Kirchstraße 3")
-        assert result is None
+        result = self.client.find_person_by_name_and_street("Klaus Weber", "Kirchstraße 3")
+        self.assertIsNone(result)
 
 
-class TestDeleteQualification:
+class TestDeleteQualification(unittest.TestCase):
+    def setUp(self):
+        self.client = HitobitoClient(base_url=HITOBITO_BASE, token="test-token")
+
     @responses_lib.activate
-    def test_deletes_qualification_by_id(self, client):
+    def test_deletes_qualification_by_id(self):
         responses_lib.add(
             responses_lib.DELETE,
             f"{HITOBITO_BASE}/api/qualifications/55",
             status=204,
         )
-        client.delete_qualification(55)
-        assert len(responses_lib.calls) == 1
-        assert responses_lib.calls[0].request.method == "DELETE"
+        self.client.delete_qualification(55)
+        self.assertEqual(len(responses_lib.calls), 1)
+        self.assertEqual(responses_lib.calls[0].request.method, "DELETE")

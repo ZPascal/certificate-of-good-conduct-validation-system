@@ -2,6 +2,7 @@
 
 import os
 import subprocess
+import unittest
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -55,31 +56,37 @@ def migrated_engine():
     engine.dispose()
 
 
-def test_certificate_validations_table_exists(migrated_engine):
-    inspector = inspect(migrated_engine)
-    assert "certificate_validations" in inspector.get_table_names()
+class TestMigrationSchema(unittest.TestCase):
+    @pytest.fixture(autouse=True)
+    def inject_engine(self, migrated_engine):
+        self.engine = migrated_engine
 
+    def test_certificate_validations_table_exists(self):
+        inspector = inspect(self.engine)
+        self.assertIn("certificate_validations", inspector.get_table_names())
 
-def test_certificate_validations_columns(migrated_engine):
-    inspector = inspect(migrated_engine)
-    cols = {c["name"] for c in inspector.get_columns("certificate_validations")}
-    assert cols == {
-        "id",
-        "paperless_document_id",
-        "person_name",
-        "is_valid",
-        "cancellation_date",
-        "last_expiry_alert_at",
-        "stamm_name",
-        "dioezese_name",
-        "created_at",
-        "updated_at",
-    }
+    def test_certificate_validations_columns(self):
+        inspector = inspect(self.engine)
+        cols = {c["name"] for c in inspector.get_columns("certificate_validations")}
+        self.assertEqual(
+            cols,
+            {
+                "id",
+                "paperless_document_id",
+                "person_name",
+                "is_valid",
+                "cancellation_date",
+                "last_expiry_alert_at",
+                "stamm_name",
+                "dioezese_name",
+                "created_at",
+                "updated_at",
+            },
+        )
 
-
-def test_paperless_document_id_unique_index(migrated_engine):
-    inspector = inspect(migrated_engine)
-    indexes = inspector.get_indexes("certificate_validations")
-    unique_indexes = [i for i in indexes if i["unique"]]
-    indexed_cols = [col for i in unique_indexes for col in i["column_names"]]
-    assert "paperless_document_id" in indexed_cols
+    def test_paperless_document_id_unique_index(self):
+        inspector = inspect(self.engine)
+        indexes = inspector.get_indexes("certificate_validations")
+        unique_indexes = [i for i in indexes if i["unique"]]
+        indexed_cols = [col for i in unique_indexes for col in i["column_names"]]
+        self.assertIn("paperless_document_id", indexed_cols)

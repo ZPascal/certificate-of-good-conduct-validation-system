@@ -1,15 +1,13 @@
 """Tests for the expiry alert logic in ValidationWorker."""
 
+import unittest
 from datetime import date, timedelta
 from unittest.mock import MagicMock, patch
-
-import pytest
 
 from src.database.models import CertificateValidation
 
 
-@pytest.fixture
-def worker():
+def _make_worker():
     with (
         patch("src.main.get_settings") as mock_settings,
         patch("src.main.create_session_factory"),
@@ -42,94 +40,80 @@ def _make_record(paperless_id: int, cancellation_date: date) -> CertificateValid
     return r
 
 
-class TestRunExpiryCheck:
-    def test_sends_alert_for_certificate_expiring_within_window(self, worker):
+class TestRunExpiryCheck(unittest.TestCase):
+    def setUp(self):
+        self.worker = _make_worker()
+
+    def _session_ctx(self, return_value):
+        session_mock = MagicMock()
+        session_mock.query.return_value.filter.return_value.all.return_value = return_value
+        mock_ctx = MagicMock()
+        mock_ctx.return_value.__enter__ = MagicMock(return_value=session_mock)
+        mock_ctx.return_value.__exit__ = MagicMock(return_value=False)
+        return mock_ctx
+
+    def test_sends_alert_for_certificate_expiring_within_window(self):
         soon = date.today() + timedelta(days=60)
         record = _make_record(1, soon)
 
-        session_mock = MagicMock()
-        session_mock.query.return_value.filter.return_value.all.return_value = [record]
+        with patch.object(self.worker, "_db_session", self._session_ctx([record])):
+            self.worker.run_expiry_check()
 
-        with patch.object(worker, "_db_session") as mock_ctx:
-            mock_ctx.return_value.__enter__ = MagicMock(return_value=session_mock)
-            mock_ctx.return_value.__exit__ = MagicMock(return_value=False)
-            worker.run_expiry_check()
-
-        worker.notifier.send_alert.assert_called_once_with(
+        self.worker.notifier.send_alert.assert_called_once_with(
             recipients=["admin@example.com"],
             status="expiring_soon",
             validation=record,
         )
 
-    def test_no_alert_when_no_expiring_certificates(self, worker):
-        session_mock = MagicMock()
-        session_mock.query.return_value.filter.return_value.all.return_value = []
+    def test_no_alert_when_no_expiring_certificates(self):
+        with patch.object(self.worker, "_db_session", self._session_ctx([])):
+            self.worker.run_expiry_check()
 
-        with patch.object(worker, "_db_session") as mock_ctx:
-            mock_ctx.return_value.__enter__ = MagicMock(return_value=session_mock)
-            mock_ctx.return_value.__exit__ = MagicMock(return_value=False)
-            worker.run_expiry_check()
+        self.worker.notifier.send_alert.assert_not_called()
 
-        worker.notifier.send_alert.assert_not_called()
+    def test_no_alert_when_no_recipients(self):
+        self.worker.settings.email.alert_recipients_list = []
+        self.worker.settings.hitobito.group_id = 0
 
-    def test_no_alert_when_no_recipients(self, worker):
-        worker.settings.email.alert_recipients_list = []
-        worker.settings.hitobito.group_id = 0
-
-        with patch.object(worker, "_db_session") as mock_ctx:
-            worker.run_expiry_check()
+        with patch.object(self.worker, "_db_session") as mock_ctx:
+            self.worker.run_expiry_check()
             mock_ctx.assert_not_called()
 
-        worker.notifier.send_alert.assert_not_called()
+        self.worker.notifier.send_alert.assert_not_called()
 
-    def test_no_alert_when_last_alert_within_cooldown(self, worker):
+    def test_no_alert_when_last_alert_within_cooldown(self):
         soon = date.today() + timedelta(days=60)
         record = _make_record(1, soon)
         record.last_expiry_alert_at = date.today() - timedelta(days=5)
 
-        session_mock = MagicMock()
-        session_mock.query.return_value.filter.return_value.all.return_value = [record]
+        with patch.object(self.worker, "_db_session", self._session_ctx([record])):
+            self.worker.run_expiry_check()
 
-        with patch.object(worker, "_db_session") as mock_ctx:
-            mock_ctx.return_value.__enter__ = MagicMock(return_value=session_mock)
-            mock_ctx.return_value.__exit__ = MagicMock(return_value=False)
-            worker.run_expiry_check()
+        self.worker.notifier.send_alert.assert_not_called()
 
-        worker.notifier.send_alert.assert_not_called()
-
-    def test_sends_alert_when_last_alert_outside_cooldown(self, worker):
+    def test_sends_alert_when_last_alert_outside_cooldown(self):
         soon = date.today() + timedelta(days=60)
         record = _make_record(1, soon)
         record.last_expiry_alert_at = date.today() - timedelta(days=31)
 
-        session_mock = MagicMock()
-        session_mock.query.return_value.filter.return_value.all.return_value = [record]
+        with patch.object(self.worker, "_db_session", self._session_ctx([record])):
+            self.worker.run_expiry_check()
 
-        with patch.object(worker, "_db_session") as mock_ctx:
-            mock_ctx.return_value.__enter__ = MagicMock(return_value=session_mock)
-            mock_ctx.return_value.__exit__ = MagicMock(return_value=False)
-            worker.run_expiry_check()
+        self.worker.notifier.send_alert.assert_called_once()
+        self.assertEqual(record.last_expiry_alert_at, date.today())
 
-        worker.notifier.send_alert.assert_called_once()
-        assert record.last_expiry_alert_at == date.today()
-
-    def test_sends_alert_for_each_expiring_certificate(self, worker):
+    def test_sends_alert_for_each_expiring_certificate(self):
         records = [
             _make_record(1, date.today() + timedelta(days=30)),
             _make_record(2, date.today() + timedelta(days=90)),
         ]
-        session_mock = MagicMock()
-        session_mock.query.return_value.filter.return_value.all.return_value = records
+        with patch.object(self.worker, "_db_session", self._session_ctx(records)):
+            self.worker.run_expiry_check()
 
-        with patch.object(worker, "_db_session") as mock_ctx:
-            mock_ctx.return_value.__enter__ = MagicMock(return_value=session_mock)
-            mock_ctx.return_value.__exit__ = MagicMock(return_value=False)
-            worker.run_expiry_check()
-
-        assert worker.notifier.send_alert.call_count == 2
+        self.assertEqual(self.worker.notifier.send_alert.call_count, 2)
 
 
-class TestAsyncHitobitoDispatch:
+class TestAsyncHitobitoDispatch(unittest.TestCase):
     def test_hitobito_called_in_background_thread(self):
         """Valid document: EFZ method is called in a background thread, not blocking."""
         with (
@@ -185,12 +169,12 @@ class TestAsyncHitobitoDispatch:
 
             mock_threading.Thread.assert_called_once()
             call_kwargs = mock_threading.Thread.call_args
-            assert call_kwargs.kwargs["target"] == w._record_efz_in_hitobito_async
-            assert call_kwargs.kwargs["daemon"] is True
+            self.assertEqual(call_kwargs.kwargs["target"], w._record_efz_in_hitobito_async)
+            self.assertTrue(call_kwargs.kwargs["daemon"])
             mock_thread_instance.start.assert_called_once()
 
 
-class TestOrgFieldStamping:
+class TestOrgFieldStamping(unittest.TestCase):
     def test_stamm_and_dioezese_stamped_on_record(self):
         with (
             patch("src.main.get_settings") as mock_settings,
@@ -222,7 +206,6 @@ class TestOrgFieldStamping:
             w = ValidationWorker()
 
             saved_records = []
-
             session_mock = MagicMock()
             session_mock.query.return_value.filter_by.return_value.first.return_value = None
 
@@ -245,6 +228,6 @@ class TestOrgFieldStamping:
                 mock_ctx.return_value.__exit__ = MagicMock(return_value=False)
                 w._process_document(document)
 
-            assert len(saved_records) == 1
-            assert saved_records[0].stamm_name == "Stamm St. Georg"
-            assert saved_records[0].dioezese_name == "Diözese Freiburg"
+            self.assertEqual(len(saved_records), 1)
+            self.assertEqual(saved_records[0].stamm_name, "Stamm St. Georg")
+            self.assertEqual(saved_records[0].dioezese_name, "Diözese Freiburg")
