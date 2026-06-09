@@ -3,6 +3,7 @@
 import os
 import sys
 from logging.config import fileConfig
+from urllib.parse import quote_plus
 
 from alembic import context
 from sqlalchemy import engine_from_config, pool
@@ -28,7 +29,10 @@ def get_url() -> str:
     db_password = os.environ.get("DB_PASSWORD")
 
     if db_host and db_port and db_name and db_user:
-        return f"postgresql+psycopg2://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
+        return (
+            f"postgresql+psycopg2://{db_user}:{quote_plus(db_password or '')}"
+            f"@{db_host}:{db_port}/{db_name}"
+        )
 
     from src.config import get_settings
 

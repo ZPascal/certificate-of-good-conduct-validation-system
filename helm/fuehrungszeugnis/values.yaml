@@ -40,7 +40,7 @@ secrets:
   paperlessToken: ""
   hitobitoToken: ""
   emailSmtpPassword: ""
-  dbPassword: "changeme"
+  dbPassword: ""
 
 postgresql:
   image:

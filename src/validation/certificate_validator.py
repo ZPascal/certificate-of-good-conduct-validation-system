@@ -71,6 +71,11 @@ _STREET_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
+# Pre-compiled word-boundary patterns for entry indicators (used in _check_entries)
+_ENTRY_INDICATOR_PATTERNS = [
+    re.compile(rf"\b{re.escape(ind)}\b", re.IGNORECASE) for ind in ENTRY_INDICATORS
+]
+
 
 @dataclass
 class ValidationResult:
@@ -237,15 +242,13 @@ class CertificateValidator:
     def _check_entries(self, text_lower: str) -> str:
         """Return 'no_entries', 'has_entries', or 'unknown'."""
         if any(phrase in text_lower for phrase in NO_ENTRIES_PHRASES):
-            for indicator in ENTRY_INDICATORS:
-                context_pattern = re.compile(rf"\b{re.escape(indicator)}\b", re.IGNORECASE)
-                matches = list(context_pattern.finditer(text_lower))
-                if len(matches) > 2:
+            for pattern in _ENTRY_INDICATOR_PATTERNS:
+                if len(pattern.findall(text_lower)) > 2:
                     return "has_entries"
             return "no_entries"
 
-        for indicator in ENTRY_INDICATORS:
-            if re.search(rf"\b{re.escape(indicator)}\b", text_lower):
+        for pattern in _ENTRY_INDICATOR_PATTERNS:
+            if pattern.search(text_lower):
                 return "has_entries"
 
         return "unknown"

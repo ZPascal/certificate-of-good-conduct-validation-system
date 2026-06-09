@@ -2,6 +2,7 @@
 
 import functools
 from pathlib import Path
+from urllib.parse import quote_plus
 
 from pydantic import Field
 from pydantic_settings import (
@@ -24,7 +25,8 @@ class DatabaseSettings(BaseSettings):
     @property
     def url(self) -> str:
         return (
-            f"postgresql+psycopg2://{self.user}:{self.password}@{self.host}:{self.port}/{self.name}"
+            f"postgresql+psycopg2://{self.user}:{quote_plus(self.password)}"
+            f"@{self.host}:{self.port}/{self.name}"
         )
 
 
