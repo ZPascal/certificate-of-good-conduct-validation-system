@@ -1,0 +1,50 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "fuehrungszeugnis.fullname" . }}
+  labels:
+    {{- include "fuehrungszeugnis.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "fuehrungszeugnis.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "fuehrungszeugnis.selectorLabels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "fuehrungszeugnis.serviceAccountName" . }}
+      initContainers:
+        - name: wait-for-postgresql
+          image: "{{ .Values.postgresql.image.repository }}:{{ .Values.postgresql.image.tag }}"
+          imagePullPolicy: {{ .Values.postgresql.image.pullPolicy }}
+          command:
+            - sh
+            - -c
+            - |
+              until pg_isready -h {{ include "fuehrungszeugnis.dbHost" . }} -U {{ .Values.postgresql.username }}; do
+                echo "Waiting for PostgreSQL..."
+                sleep 2
+              done
+        - name: migrate
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["python", "-m", "alembic", "upgrade", "head"]
+          envFrom:
+            - configMapRef:
+                name: {{ include "fuehrungszeugnis.fullname" . }}
+            - secretRef:
+                name: {{ include "fuehrungszeugnis.fullname" . }}
+      containers:
+        - name: worker
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["python", "-m", "src.main"]
+          envFrom:
+            - configMapRef:
+                name: {{ include "fuehrungszeugnis.fullname" . }}
+            - secretRef:
+                name: {{ include "fuehrungszeugnis.fullname" . }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}

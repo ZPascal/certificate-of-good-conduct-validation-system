@@ -1,0 +1,17 @@
+{
+  "request": {
+    "method": "GET",
+    "urlPath": "/api/tags/",
+    "queryParameters": {
+      "name__iexact": { "equalTo": "Führungszeugnis" }
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": { "Content-Type": "application/json" },
+    "jsonBody": {
+      "count": 1,
+      "results": [{ "id": 1, "name": "Führungszeugnis" }]
+    }
+  }
+}

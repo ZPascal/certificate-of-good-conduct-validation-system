@@ -1,0 +1,31 @@
+{
+  "mappings": [
+    {
+      "request": {
+        "method": "GET",
+        "urlPath": "/api/documents/",
+        "queryParameters": {
+          "tags__id": { "equalTo": "1" }
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": { "Content-Type": "application/json" },
+        "jsonBody": {
+          "count": 1,
+          "results": [
+            {
+              "id": 1,
+              "title": "Führungszeugnis Max Mustermann",
+              "content": "Erweitertes Führungszeugnis\nName: Max Mustermann\nAusgestellt 01.01.2025\nEs sind keine Eintragungen vorhanden.",
+              "created": "2025-01-01T00:00:00Z",
+              "added": "2025-01-02T00:00:00Z",
+              "tags": [],
+              "original_file_name": "fz_mustermann.pdf"
+            }
+          ]
+        }
+      }
+    }
+  ]
+}
